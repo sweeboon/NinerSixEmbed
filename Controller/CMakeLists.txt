@@ -1,15 +1,21 @@
-add_executable(controller
-    controller.c
+
+add_executable(joystickclient
+joystickclient.c
+        )
+target_compile_definitions(joystickclient PRIVATE
+        WIFI_SSID="SB"
+        WIFI_PASSWORD="bogt7083"
+        TEST_TCP_SERVER_IP="192.168.236.70"
+        )
+target_include_directories(joystickclient PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+        )
+target_link_libraries(joystickclient
+        pico_cyw43_arch_lwip_threadsafe_background
+        pico_stdlib
+        hardware_adc
         )
 
-target_link_libraries(controller pico_stdlib hardware_pwm hardware_adc)
-
-# enable usb output, enable uart output
-pico_enable_stdio_usb(controller 1)
-pico_enable_stdio_uart(controller 1)
-
-# create map/bin/hex file etc.
-pico_add_extra_outputs(controller)
-
-# add url via pico_set_program_url
-example_auto_set_url(controller)
+pico_add_extra_outputs(joystickclient)
+pico_enable_stdio_usb(joystickclient 1)
