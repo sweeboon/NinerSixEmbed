@@ -1,6 +1,8 @@
 # NinerSixEmbed
 Project Block Diagram:
-![Embed Sys Flowchart - Page 1](https://github.com/sweeboon/NinerSixEmbed/assets/112924419/08ddbf1e-67e0-4715-80b3-1faf4c7cb321)
+![Embed Sys Flowchart](https://github.com/sweeboon/NinerSixEmbed/assets/112924419/fb41dc95-572b-48cf-b551-776e305644d6)
+
+
 
 
 Project Flowchart:
