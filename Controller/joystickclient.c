@@ -66,6 +66,7 @@ void send_joystick_data(struct tcp_pcb *tpcb) {
     // Ensure there is enough space in the send buffer
     if (tcp_sndbuf(tpcb) >= sizeof(buffer)) {
         tcp_write(tpcb, buffer, sizeof(buffer), TCP_WRITE_FLAG_COPY);
+        sleep_ms(100);
     }
 }
 
