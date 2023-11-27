@@ -5,7 +5,7 @@ joystickclient.c
 target_compile_definitions(joystickclient PRIVATE
         WIFI_SSID="SB"
         WIFI_PASSWORD="bogt7083"
-        TEST_TCP_SERVER_IP="192.168.30.70"
+        TEST_TCP_SERVER_IP="192.168.236.70"
         )
 target_include_directories(joystickclient PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}

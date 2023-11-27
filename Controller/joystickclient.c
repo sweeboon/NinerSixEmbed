@@ -7,20 +7,33 @@
 
 #define JOYSTICK_X_PIN 26 // ADC0, which is GP26 on the Pico
 #define JOYSTICK_Y_PIN 27 // ADC1, which is GP27 on the Pico
+#define JOYSTICK_A_BTN 18
+#define JOYSTICK_B_BTN 19
+#define JOYSTICK_C_BTN 20
+#define JOYSTICK_D_BTN 21
 #define TCP_PORT 4242
-#define BUF_SIZE 1024
+#define BUF_SIZE 2048
 
 void init_joystick() {
     adc_init();
     adc_gpio_init(JOYSTICK_X_PIN);
     adc_gpio_init(JOYSTICK_Y_PIN);
+    gpio_init(JOYSTICK_A_BTN);
+    gpio_init(JOYSTICK_B_BTN);
+    gpio_init(JOYSTICK_C_BTN);
+    gpio_init(JOYSTICK_D_BTN);
 }
 
-void read_joystick(uint16_t *x, uint16_t *y) {
+void read_joystick(uint16_t *x, uint16_t *y, uint16_t *a, uint16_t *b, uint16_t *c, uint16_t *d) {
     adc_select_input(0); // X axis
     *x = adc_read();
     adc_select_input(1); // Y axis
     *y = adc_read();
+    
+    *a = gpio_get(JOYSTICK_A_BTN);
+    *b = gpio_get(JOYSTICK_B_BTN);
+    *c = gpio_get(JOYSTICK_C_BTN);
+    *d = gpio_get(JOYSTICK_D_BTN);
 }
 
 void tcp_client_error(void *arg, err_t err) {
@@ -30,7 +43,7 @@ void tcp_client_error(void *arg, err_t err) {
     } else {
         printf("Unexpected TCP error occurred.\n");
     }
-    // You can add more error handling logic here if needed
+    // Add more error handling logic here if needed
 }
 
 err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
@@ -42,26 +55,31 @@ err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
     printf("Connected to TCP server.\n");
 
     // Send joystick data once connected
-    uint16_t x, y;
-    read_joystick(&x, &y);
+    uint16_t x, y, a, b, c, d;
+    read_joystick(&x, &y, &a, &b, &c, &d);
 
     // Print joystick position before sending
     // printf("Joystick Position - X: %u, Y: %u\n", x, y);
 
     char buffer[BUF_SIZE];
     snprintf(buffer, sizeof(buffer), "X: %u, Y: %u\n", x, y);
+    snprintf(buffer, sizeof(buffer), "A: %u, B: %u, C: %u, D: %u\n", a, b, c, d);
     tcp_write(tpcb, buffer, strlen(buffer), TCP_WRITE_FLAG_COPY);
     return ERR_OK;
 }
 
 void send_joystick_data(struct tcp_pcb *tpcb) {
-    uint16_t x, y;
-    read_joystick(&x, &y);
+    uint16_t x, y, a, b, c, d;
+    read_joystick(&x, &y, &a, &b, &c, &d);
 
    // Serialize the x and y values into a byte stream
-    uint8_t buffer[sizeof(uint16_t) * 2];
+    uint8_t buffer[sizeof(uint16_t) * 6];
     memcpy(buffer, &x, sizeof(uint16_t));
     memcpy(buffer + sizeof(uint16_t), &y, sizeof(uint16_t));
+    memcpy(buffer + 2 * sizeof(uint16_t), &a, sizeof(uint16_t));
+    memcpy(buffer + 3 * sizeof(uint16_t), &b, sizeof(uint16_t));
+    memcpy(buffer + 4 * sizeof(uint16_t), &c, sizeof(uint16_t));
+    memcpy(buffer + 5 * sizeof(uint16_t), &d, sizeof(uint16_t));
     
     // Ensure there is enough space in the send buffer
     if (tcp_sndbuf(tpcb) >= sizeof(buffer)) {
