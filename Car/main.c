@@ -15,6 +15,8 @@ volatile uint64_t last_time = 0;
 volatile uint64_t speed = 0;
 volatile int controller_x = 0;
 volatile int controller_y = 0;
+volatile int x_deviation = 0;
+volatile int y_deviation = 0;
 
 #define WIFI_SSID "SB"
 #define WIFI_PASSWORD "bogt7083"
@@ -127,17 +129,18 @@ void setMotorDirection(bool forward) {
     }
 }
 
-void moveReverse(){
+void moveReverse(int speed){
     uint slice_num = pwm_gpio_to_slice_num(0);
     setMotorDirection(false);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * SPEED4 / 2);
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 12500 * SPEED4 / 2);
+    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * speed / 2);
+    pwm_set_chan_level(slice_num, PWM_CHAN_B, 10000 * speed / 2);
 }
-void moveForward() {
+
+void moveForward(int speed) {
     uint slice_num = pwm_gpio_to_slice_num(0);
     setMotorDirection(true);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * SPEED4 / 2);
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 12500 * SPEED4 / 2);
+    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * speed / 2);
+    pwm_set_chan_level(slice_num, PWM_CHAN_B, 10000 * speed / 2);
 }
 
 void stop() {
@@ -146,41 +149,46 @@ void stop() {
     pwm_set_chan_level(slice_num, PWM_CHAN_B, 0);
 }
 
-void turnLeft() {
+void turnLeft(int speed) {
     setMotorDirection(true);
     uint slice_num = pwm_gpio_to_slice_num(0);
     pwm_set_chan_level(slice_num, PWM_CHAN_A, 0); // Stop left wheel
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 12500 * SPEED4 / 2); // Speed up right wheel
+    pwm_set_chan_level(slice_num, PWM_CHAN_B, 12500 * speed / 2); // Speed up right wheel
 }
 
-void turnRight() {
+void turnRight(int speed) {
     setMotorDirection(true);
     uint slice_num = pwm_gpio_to_slice_num(0);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * SPEED4 / 2); // Speed up left wheel
+    pwm_set_chan_level(slice_num, PWM_CHAN_A, 14000 * speed / 2); // Speed up left wheel
     pwm_set_chan_level(slice_num, PWM_CHAN_B, 0); // Stop right wheel
 }
 
 void controller_logic(int controller_x, int controller_y) {
-    if (controller_x > 3000) {
+    x_deviation = controller_x - 2082;
+    y_deviation = controller_y - 2040;
+    if (controller_x > 2150) {
         // Turn right
-        turnRight();
+        printf("Turning right\n");
+        turnRight(x_deviation / 383);  //Unique divisor for x axis
         sleep_ms(1000);
-    } else if (controller_x < 1000) {
+    } else if (controller_x < 1950) {
         // Turn left
-        turnLeft();
+        printf("Turning left\n");
+        turnLeft(x_deviation / 383);   //Unique divisor for x axis
         sleep_ms(1000);
-    } else if(controller_y < 1000) {
+    } else if(controller_y > 2150) {
+        // Move forward
+        printf("Moving forward\n");
+        moveForward(y_deviation / 411);    //Unique divisor for y axis
+        sleep_ms(1000);
+    } else if(controller_y < 1950){
         // Move backward
-        moveReverse();
+        printf("Reversing\n");
+        moveReverse(y_deviation / 411); //Unique divisor for y axis
         sleep_ms(1000);
-    } else if(controller_y>3000){
-        // Move forward
-        moveForward();
+    } else {
+        stop();
         sleep_ms(1000);
-    }
-    else {
-        // Move forward
-        moveForward();
     }
 }
 
@@ -196,21 +204,21 @@ bool ultrasonic_callback(){
     // printf("Distance: %llu cm\n", distanceCm);
     if (distanceCm < 10) {
         printf("Executing Avoidance\n");
-        turnLeft();
+        turnLeft(SPEED4);
         sleep_ms(500);
-        moveForward();
+        moveForward(SPEED4);
         sleep_ms(1000);
-        turnRight();
+        turnRight(SPEED4);
         sleep_ms(500);
-        moveForward();
+        moveForward(SPEED4);
         sleep_ms(1000);
-        turnRight();
+        turnRight(SPEED4);
         sleep_ms(500);
-        moveForward();
+        moveForward(SPEED4);
         sleep_ms(1000);
-        turnLeft();
+        turnLeft(SPEED4);
         sleep_ms(500);
-        moveForward();
+        moveForward(SPEED4);
         return true;
     } else {
         sleep_ms(50);
@@ -301,7 +309,6 @@ int main() {
         if (ultrasonic_callback() == true){
             printf("Obstacle detected\n");
         } else {
-            moveForward();
             // encoder_callback();
             printf("Controller X: %d, Controller Y: %d\n", controller_x, controller_y);
             controller_logic(controller_x, controller_y);
