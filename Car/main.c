@@ -6,6 +6,7 @@
 #include "hardware/irq.h"
 #include "hardware/uart.h"
 #include "ultrasonic.h"
+#include "stdbool.h"
 
 volatile bool encoder_event_left = false;
 volatile bool encoder_event_right = false;
@@ -17,6 +18,10 @@ volatile int controller_x = 0;
 volatile int controller_y = 0;
 volatile int x_deviation = 0;
 volatile int y_deviation = 0;
+volatile bool button_a = false;
+volatile bool button_b = false;
+volatile bool button_c = false;
+volatile bool button_d = false;
 
 #define WIFI_SSID "SB"
 #define WIFI_PASSWORD "bogt7083"
@@ -49,14 +54,24 @@ static err_t on_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
         tcp_recv(tpcb, NULL);
         return ERR_OK;
     } else {
-        if (p->len == sizeof(uint16_t) * 2) {
-            uint16_t x, y;
+        if (p->len == sizeof(uint16_t) * 6) {
+            uint16_t x, y, a, b, c, d;
             memcpy(&x, p->payload, sizeof(uint16_t));
             memcpy(&y, (uint8_t*)p->payload + sizeof(uint16_t), sizeof(uint16_t));
+            memcpy(&a, (uint8_t*)p->payload + 2 * sizeof(uint16_t), sizeof(uint16_t));
+            memcpy(&b, (uint8_t*)p->payload + 3 * sizeof(uint16_t), sizeof(uint16_t));
+            memcpy(&c, (uint8_t*)p->payload + 4 * sizeof(uint16_t), sizeof(uint16_t));
+            memcpy(&d, (uint8_t*)p->payload + 5 * sizeof(uint16_t), sizeof(uint16_t));
             
             printf("Joystick Position - X: %u, Y: %u\n", x, y);
+            printf("Button A: %u, Button B: %u, Button C: %u, Button D: %u\n", a, b, c, d);
             controller_x = (int) x;
             controller_y = (int) y;
+
+            button_a = (bool) a;
+            button_b = (bool) b;
+            button_c = (bool) c;
+            button_d = (bool) d;
         }
 
         tcp_recved(tpcb, p->len);
@@ -186,6 +201,33 @@ void controller_logic(int controller_x, int controller_y) {
         printf("Reversing\n");
         moveReverse(y_deviation / 411); //Unique divisor for y axis
         sleep_ms(1000);
+    } else if (button_b == false){
+        printf("Crazy Dance Mode!\n");
+        for (int i = 0; i < 5; i++){
+            if (button_c == true){
+                turnLeft(5);
+                sleep_ms(1000);
+                turnRight(5);
+                sleep_ms(1000);
+                moveReverse(5);
+                sleep_ms(1000);
+                turnLeft(5);
+                sleep_ms(500);
+                turnRight(5);
+                sleep_ms(200);
+                turnLeft(5);
+                sleep_ms(500);
+                turnRight(5);
+                sleep_ms(200);
+                turnRight(5);
+                sleep_ms(1000);
+                moveReverse(5);
+                sleep_ms(1000);
+            } else {
+                break;
+            }
+                
+        }
     } else {
         stop();
         sleep_ms(1000);
@@ -202,6 +244,10 @@ void resetAfterAvoidance() {
 bool ultrasonic_callback(){
     uint64_t distanceCm = getCm(TRIG_PIN, ECHO_PIN);
     // printf("Distance: %llu cm\n", distanceCm);
+    if (!button_a) {
+        printf("Avoidance deactivated\n");
+        return false;
+    }
     if (distanceCm < 10) {
         printf("Executing Avoidance\n");
         turnLeft(SPEED4);
@@ -219,8 +265,10 @@ bool ultrasonic_callback(){
         turnLeft(SPEED4);
         sleep_ms(500);
         moveForward(SPEED4);
+        sleep_ms(1000);
         return true;
     } else {
+        stop();
         sleep_ms(50);
         return false;
     }
@@ -311,6 +359,7 @@ int main() {
         } else {
             // encoder_callback();
             printf("Controller X: %d, Controller Y: %d\n", controller_x, controller_y);
+            printf("Button A: %b, Button B: %b, Button C: %b, Button D: %b\n", button_a, button_b, button_c, button_d);
             controller_logic(controller_x, controller_y);
         }
 
